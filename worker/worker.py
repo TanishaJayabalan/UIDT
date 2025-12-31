@@ -1,6 +1,12 @@
-import time
+from celery import Celery
 
-print("Worker container started successfully")
+celery_app = Celery(
+    "worker",
+    broker="redis://redis:6379/0",
+    backend="redis://redis:6379/0"
+)
 
-while True:
-    time.sleep(5)
+@celery_app.task
+def test_task():
+    print("Celery task executed successfully!")
+    return "done"

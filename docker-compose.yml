@@ -22,7 +22,9 @@ services:
     working_dir: /app
     volumes:
       - ./worker:/app
-    command: python worker.py
+    command: >
+      sh -c "pip install -r requirements.txt &&
+        celery -A worker.celery_app worker --loglevel=info"
     env_file:
       - .env
     depends_on:

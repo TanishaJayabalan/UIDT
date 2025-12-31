@@ -1,21 +1,19 @@
 from fastapi import FastAPI
-import psycopg2
-import os
+from celery import Celery
 
 app = FastAPI()
+
+celery_app = Celery(
+    "backend",
+    broker="redis://redis:6379/0",
+    backend="redis://redis:6379/0"
+)
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
-@app.get("/db-check")
-def db_check():
-    conn = psycopg2.connect(
-        dbname=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
-    )
-    conn.close()
-    return {"database": "connected"}
+@app.get("/trigger-task")
+def trigger_task():
+    celery_app.send_task("worker.test_task")
+    return {"task": "sent"}

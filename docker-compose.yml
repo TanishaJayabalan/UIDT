@@ -22,7 +22,8 @@ services:
     working_dir: /app
     volumes:
       - ./worker:/app
-    command: python worker.py
+    command: celery -A worker.worker.celery_app worker --loglevel=info
+
     env_file:
       - .env
     depends_on:

@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  backend:
+    image: python:3.11-slim
+    container_name: traffic_backend
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    command: sleep infinity
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  worker:
+    image: python:3.11-slim
+    container_name: traffic_worker
+    working_dir: /app
+    volumes:
+      - ./worker:/app
+    command: sleep infinity
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+
+  db:
+    image: postgres:15
+    container_name: traffic_db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: traffic_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  db_data:

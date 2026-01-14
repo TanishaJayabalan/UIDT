@@ -1,0 +1,36 @@
+# --------------------
+# Environment files
+# --------------------
+.env
+.env.*
+
+# --------------------
+# Node / Frontend
+# --------------------
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --------------------
+# Python
+# --------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# --------------------
+# OS / Editor
+# --------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --------------------
+# Docker
+# --------------------
+*.log

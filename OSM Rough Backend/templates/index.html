@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSM to SUMO</title>
+    <link rel="stylesheet" href="/static/leaflet/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; }
+        .controls { padding: 10px; background: #eee; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <input id="placeInput" placeholder="Search place (e.g., Bengaluru)" style="width:220px" />
+        <button onclick="searchPlace()">Search</button>
+        <button onclick="startSelection()">1. Select Area (BBOX)</button>
+        <button onclick="drawHighway()">2. Draw New Highway</button>
+        <button onclick="runSimulation()">3. Run Simulation</button>
+        <p id="status">Status: Ready</p>
+    </div>
+    <div id="map"></div>
+
+    <script src="/static/leaflet/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([52.52, 13.40], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        var bbox = null;
+        var newRoadPoints = [];
+        var tempLayer = L.layerGroup().addTo(map);
+
+        function startSelection() {
+            document.getElementById('status').innerText = "Click two points for Bounding Box";
+            map.once('click', (e1) => {
+                map.once('click', (e2) => {
+                    // normalize order: west, south, east, north
+                    const lon1 = e1.latlng.lng, lat1 = e1.latlng.lat, lon2 = e2.latlng.lng, lat2 = e2.latlng.lat;
+                    const west = Math.min(lon1, lon2), east = Math.max(lon1, lon2);
+                    const south = Math.min(lat1, lat2), north = Math.max(lat1, lat2);
+                    bbox = [west, south, east, north];
+                    L.rectangle([[south, west], [north, east]]).addTo(tempLayer);
+                    document.getElementById('status').innerText = "BBOX Selected";
+                });
+            });
+        }
+
+        function drawHighway() {
+            document.getElementById('status').innerText = "Click Start and End of Highway";
+            map.once('click', (e1) => {
+                newRoadPoints = [];
+                newRoadPoints.push([e1.latlng.lat, e1.latlng.lng]);
+                map.once('click', (e2) => {
+                    newRoadPoints.push([e2.latlng.lat, e2.latlng.lng]);
+                    L.polyline(newRoadPoints, {color: 'red'}).addTo(tempLayer);
+                    document.getElementById('status').innerText = "Highway Added";
+                });
+            });
+        }
+
+        async function runSimulation() {
+            if (!bbox) { alert('Please select a BBOX first'); return; }
+            document.getElementById('status').innerText = "Simulating... please wait.";
+            const response = await fetch('/simulate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    bbox: bbox,
+                    new_road: newRoadPoints.length >= 2 ? {from: newRoadPoints[0], to: newRoadPoints[1]} : null
+                })
+            });
+            let result;
+            try {
+                result = await response.json();
+            } catch (e) {
+                const text = await response.text();
+                alert('Server error: ' + text);
+                document.getElementById('status').innerText = 'Error';
+                return;
+            }
+            alert(result.message);
+            document.getElementById('status').innerText = "Done! Check data/trace.xml on the server";
+        }
+
+        // Search place using Nominatim and set bbox
+        async function searchPlace() {
+            const q = document.getElementById('placeInput').value;
+            if (!q) { alert('Enter a place name'); return; }
+            document.getElementById('status').innerText = 'Searching...';
+            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+            try {
+                const r = await fetch(url, {headers: {'Accept': 'application/json'}});
+                const data = await r.json();
+                if (!data || data.length === 0) { alert('Place not found'); document.getElementById('status').innerText = 'Ready'; return; }
+                const item = data[0];
+                // boundingbox: [south, north, west, east]
+                const bb = item.boundingbox.map(parseFloat);
+                const south = bb[0], north = bb[1], west = bb[2], east = bb[3];
+                bbox = [west, south, east, north];
+                tempLayer.clearLayers();
+                L.rectangle([[south, west], [north, east]]).addTo(tempLayer);
+                map.fitBounds([[south, west], [north, east]]);
+                document.getElementById('status').innerText = `Selected: ${item.display_name}`;
+            } catch (err) {
+                alert('Search failed: ' + err);
+                document.getElementById('status').innerText = 'Ready';
+            }
+        }
+    </script>
+</body>
+</html>

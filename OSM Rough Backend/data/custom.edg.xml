@@ -1,0 +1,3 @@
+<edges>
+<edge id="new_hwy" from="start" to="end" numLanes="3" speed="33.33" type="highway.motorway"/>
+</edges>
